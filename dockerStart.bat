@@ -1,0 +1,1 @@
+docker run --name postgres-db -e POSTGRES_USER=user -e POSTGRES_PASSWORD=password -e POSTGRES_DB=mydb -p 5432:5432 -v $(pwd)/init-db.sql:./docker-entrypoint-initdb.d/init-db.sql -d --restart=always postgres
