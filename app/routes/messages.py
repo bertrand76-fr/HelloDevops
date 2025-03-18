@@ -16,7 +16,7 @@ class MessageCreate(BaseModel):
 @router.post("/store")
 def store_message(message: MessageCreate, db: Session = Depends(get_db)):
     #unique_id = f"{socket.gethostname()}-{int(datetime.datetime.utcnow().timestamp())}"
-    unique_id = uuid.uuid4()
+    unique_id = str(uuid.uuid4())
     new_message = Message(id=unique_id, content=message.content)
     db.add(new_message)
     db.commit()
