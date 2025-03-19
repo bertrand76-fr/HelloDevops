@@ -44,3 +44,18 @@ def delete_by_id(id: str, db: Session = Depends(get_db)):
         db.commit()
         return {"message": f"Message with id {id} deleted successfully"}
     raise HTTPException(status_code=404, detail=f"Message with id {id} not found")
+
+
+# `DELETE /deleteAll` → Supprimer tous les messages
+@router.delete("/deleteAll")
+def delete_all_messages(db: Session = Depends(get_db)):
+    """ Supprime tous les messages de la base """
+    try:
+        deleted_count = db.query(Message).delete()
+        db.commit()
+        return {"message": f"{deleted_count} messages supprimés"}
+    except Exception as e:
+        db.rollback()
+        return {"error": f"Échec de la suppression : {str(e)}"}
+		
+		
