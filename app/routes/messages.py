@@ -12,10 +12,13 @@ router = APIRouter()
 class MessageCreate(BaseModel):
     content: str
 
+import logging
+logger = logging.getLogger(__name__)
+
 # `POST /store` → Ajouter un message en base
 @router.post("/store")
 def store_message(message: MessageCreate, db: Session = Depends(get_db)):
-    #unique_id = f"{socket.gethostname()}-{int(datetime.datetime.utcnow().timestamp())}"
+    logger.info(" @router.post(\"/store\") : store_message appelé")
     unique_id = str(uuid.uuid4())
     new_message = Message(id=unique_id, content=message.content)
     db.add(new_message)
@@ -25,11 +28,13 @@ def store_message(message: MessageCreate, db: Session = Depends(get_db)):
 # `GET /getAll` → Récupérer tous les messages
 @router.get("/getAll")
 def get_all_messages(db: Session = Depends(get_db)):
+    logger.info(" @router.get(\"/getAll\") : get_all_messages appelée")
     return db.query(Message).all()
 
 # `GET /getById/{id}` → Récupérer un message spécifique
 @router.get("/getById/{id}")
 def get_by_id(id: str, db: Session = Depends(get_db)):
+    logger.info(" @router.get(\"/getById/" + id + "\") : get_by_id appelé" )
     message = db.query(Message).filter(Message.id == id).first()
     if message:
         return message
@@ -38,6 +43,7 @@ def get_by_id(id: str, db: Session = Depends(get_db)):
 # ✅ `DELETE /deleteById/{id}` → Supprimer un message
 @router.delete("/deleteById/{id}")
 def delete_by_id(id: str, db: Session = Depends(get_db)):
+    logger.info(" @router.delete(\"/deleteById/" + id +"\") : delete_by_id appelé")
     message = db.query(Message).filter(Message.id == id).first()
     if message:
         db.delete(message)
@@ -51,6 +57,7 @@ def delete_by_id(id: str, db: Session = Depends(get_db)):
 def delete_all_messages(db: Session = Depends(get_db)):
     """ Supprime tous les messages de la base """
     try:
+        logger.info(" @router.delete(\"/deleteAll\") : delete_all_messages appelé")
         deleted_count = db.query(Message).delete()
         db.commit()
         return {"message": f"{deleted_count} messages supprimés"}
