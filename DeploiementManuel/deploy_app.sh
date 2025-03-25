@@ -40,7 +40,15 @@ az acr create \
   --admin-enabled true
 
 # ========== CLOUD BUILD ==========
-echo "☁️ Build de l'image directement dans Azure..."
+echo "☁️ Build de l'image Docker dans Azure..."
+
+DOCKERFILE_PATH="$PROJECT_ROOT/Dockerfile"
+if [ ! -f "$DOCKERFILE_PATH" ]; then
+  echo "❌ ERREUR : Dockerfile introuvable à l'emplacement : $DOCKERFILE_PATH"
+  echo "💡 Vérifie que ton script est dans le dossier 'DeploiementManuel' et que le Dockerfile est un niveau au-dessus."
+  exit 1
+fi
+
 az acr build \
   --registry $ACR_NAME \
   --resource-group $RESOURCE_GROUP \
@@ -63,6 +71,33 @@ az webapp create \
   --name $APP_NAME \
   --deployment-container-image-name $ACR_NAME.azurecr.io/$IMAGE_NAME:latest
 
+# ========== APPLICATION INSIGHTS ==========
+APPINSIGHTS_NAME="${APP_NAME}-insights"
+
+echo "🔍 Vérification ou création d'Application Insights..."
+az config set extension.use_dynamic_install=yes_without_prompt
+
+az monitor app-insights component show \
+  --app $APPINSIGHTS_NAME \
+  --resource-group $RESOURCE_GROUP >/dev/null 2>&1 || \
+az monitor app-insights component create \
+  --app $APPINSIGHTS_NAME \
+  --location $LOCATION \
+  --resource-group $RESOURCE_GROUP \
+  --application-type web
+
+echo "🔑 Récupération de la clé d'instrumentation Insights..."
+INSTRUMENTATION_KEY=$(az monitor app-insights component show \
+  --app $APPINSIGHTS_NAME \
+  --resource-group $RESOURCE_GROUP \
+  --query instrumentationKey -o tsv)
+
+echo "📎 Liaison App Service ↔ Application Insights..."
+az webapp config appsettings set \
+  --name $APP_NAME \
+  --resource-group $RESOURCE_GROUP \
+  --settings APPINSIGHTS_INSTRUMENTATIONKEY=$INSTRUMENTATION_KEY
+
 # ========== CONFIGURATION ==========
 echo "🔐 Récupération des identifiants ACR..."
 ACR_USER=$(az acr credential show --name $ACR_NAME --query username -o tsv)
@@ -82,6 +117,13 @@ az webapp config appsettings set \
   --name $APP_NAME \
   --resource-group $RESOURCE_GROUP \
   --settings ENV=production
+
+# ========== LOGS ==========
+echo "📡 Activation des logs de conteneur (stdout/stderr)..."
+az webapp log config \
+  --name $APP_NAME \
+  --resource-group $RESOURCE_GROUP \
+  --docker-container-logging filesystem
 
 # ========== FIN ==========
 echo "✅ Déploiement terminé avec le plan F1 sur $LOCATION"
