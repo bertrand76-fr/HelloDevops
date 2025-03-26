@@ -7,6 +7,7 @@ WORKDIR /app
 # Copie les fichiers
 COPY ./app /app/app
 COPY requirements.txt /app
+COPY .env /app
 
 # Installe les dépendances
 RUN pip install --upgrade pip \

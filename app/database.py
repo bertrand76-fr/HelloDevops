@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+#load_dotenv(dotenv_path="../.env")  # si tu es dans app/
+load_dotenv()
 import os
 import time
 from sqlalchemy import create_engine, text
@@ -7,6 +10,11 @@ import subprocess
 # ✅ Variable globale pour suivre si les tables ont été créées
 TABLES_CREATED = False  
 
+from pathlib import Path
+print("📂 Working dir:", Path.cwd())
+
+print("✅ DATABASE_URL:", os.getenv("DATABASE_URL"))
+
 # ✅ Détection du mode test avec une variable d'environnement
 IS_TEST = os.getenv("TEST_MODE", "0") == "1"
 
@@ -15,15 +23,21 @@ if IS_TEST:
     print("🚀 Mode TEST activé : utilisation de SQLite en mémoire")
 else:
     # ✅ Connexion à PostgreSQL Azure
+    """
     POSTGRES_USER = os.getenv("POSTGRES_USER", "devopsadmin")
     POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "devopsadmin")
     POSTGRES_SERVER = os.getenv("POSTGRES_SERVER", "hellodevops-db-postgres")
     POSTGRES_SERVER_SUFFIX = os.getenv("POSTGRES_SERVER_SUFFIX", ".postgres.database.azure.com")
     POSTGRES_DB = os.getenv("POSTGRES_DB", "postgres")
     RESOURCE_GROUP = os.getenv("AZURE_RESOURCE_GROUP", "DevopsDeploymentManuelRG")
+    """
+    try:
+    #DATABASE_URL = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_SERVER}{POSTGRES_SERVER_SUFFIX}:5432/{POSTGRES_DB}?sslmode=require"
+        DATABASE_URL = os.environ["DATABASE_URL"]
+        print(f"✅ Mode PRODUCTION : connexion via DATABASE_URL")
+    except KeyError:
+        raise RuntimeError("❌ DATABASE_URL non défini dans les variables d'environnement")
 
-    DATABASE_URL = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_SERVER}{POSTGRES_SERVER_SUFFIX}:5432/{POSTGRES_DB}?sslmode=require"
-    print(f"✅ Mode PRODUCTION : connexion à {POSTGRES_SERVER}{POSTGRES_SERVER_SUFFIX}")
 
     # DATABASE_URL = "postgresql://user:password@localhost:5432/mydb"  # ✅ PostgreSQL en production
     # print(f"✅ Mode PRODUCTION : connexion à {DATABASE_URL}")
@@ -48,6 +62,7 @@ def is_postgres_running():
         return False
 
 # ✅ Fonction pour redémarrer PostgreSQL Azure
+"""
 def restart_postgres():
     print("🔄 Tentative de redémarrage du serveur PostgreSQL via Azure CLI...")
     restart_command = f"az postgres flexible-server start --name {POSTGRES_SERVER} --resource-group {RESOURCE_GROUP}"
@@ -58,7 +73,7 @@ def restart_postgres():
         time.sleep(20)  # ⏳ Attendre 20 secondes que le serveur redémarre complètement
     except Exception as e:
         print(f"❌ Échec du redémarrage de PostgreSQL : {e}")
-
+"""
 
 """
 # ✅ Fonction pour récupérer une session DB
@@ -77,6 +92,7 @@ def get_db():
 """
 # ✅ Fonction pour récupérer une session DB avec support de test
 def get_db():
+    """
     global TABLES_CREATED
     db = None
     if IS_TEST:  # 🚀 En test, s'assurer que la table existe
@@ -98,7 +114,8 @@ def get_db():
 
         if db is None:
             raise Exception("❌ Impossible de se connecter à PostgreSQL après plusieurs tentatives.")
-
+    """
+    db = SessionLocal()
     try:
         if IS_TEST:  # 🚀 En test, s'assurer que la table existe
             Base.metadata.create_all(bind=engine)
