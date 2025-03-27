@@ -1,11 +1,21 @@
 #!/bin/bash
 
-# 🔹 Configuration des variables
-RESOURCE_GROUP="DevopsDeploymentManuelRG"
-SERVER_NAME="hellodevops-db-postgres"
+# Load .env existant
+set -a
+. ../.env
+set +a
+
+# Creation de nom de base unique
+SUFFIX=$(tr -dc 'a-z0-9' </dev/urandom | head -c 6)
+POSTGRES_SERVER="${POSTGRES_SERVER_BASE_NAME}-${SUFFIX}"
+
+sed -i "/^POSTGRES_SERVER=/d" ../.env
+echo "POSTGRES_SERVER=$POSTGRES_SERVER\n" >> ../.env
+
+echo "🚀 Ajout de  POSTGRES_SERVER=$POSTGRES_SERVER dans .env"
+
+# 🔹 Configuration des variables specifiques a la creation de la base
 LOCATION="West US 3"  # ✅ Région Hawaï
-ADMIN_USER="devopsadmin"
-ADMIN_PASSWORD="devopsadmin"
 MY_IP_ADDRESS=monIpLocal # Remplacer par l'ip locale pour une execution locale
 
 echo "🚀 Déploiement de PostgreSQL Flexible Server en mode Spot sur Azure (Hawaï)..."
@@ -21,14 +31,14 @@ fi
 # 🔹 Création du serveur PostgreSQL Flexible en mode Spot (Hawaï)
 az postgres flexible-server create \
     --resource-group $RESOURCE_GROUP \
-    --name $SERVER_NAME \
+    --name $POSTGRES_SERVER \
     --location "$LOCATION" \
     --sku-name Standard_B1ms \
     --tier Burstable \
     --high-availability Disabled \
     --public-access Enabled \
-    --admin-user $ADMIN_USER \
-    --admin-password "$ADMIN_PASSWORD"
+    --admin-user $POSTGRES_USER \
+    --admin-password "$POSTGRES_PASSWORD"
 
 echo "✅ Base de données PostgreSQL créée avec succès dans la région Hawaï ($LOCATION)."
 
@@ -40,7 +50,7 @@ else
     echo "🔹 Ajout d'une règle de pare-feu pour l'IP actuelle : $MY_IP_ADDRESS"
     az postgres flexible-server firewall-rule create \
         --resource-group $RESOURCE_GROUP \
-        --name $SERVER_NAME \
+        --name $POSTGRES_SERVER \
         --rule-name AllowMyIP \
         --start-ip-address $MY_IP_ADDRESS \
         --end-ip-address $MY_IP_ADDRESS
@@ -52,7 +62,7 @@ fi
 echo "🔹 Ajout d'une règle de pare-feu pour l'IP Azure Shell : 0.0.0.0"
 az postgres flexible-server firewall-rule create \
     --resource-group $RESOURCE_GROUP \
-    --name $SERVER_NAME \
+    --name $POSTGRES_SERVER \
     --rule-name AllowAzureShell \
     --start-ip-address 0.0.0.0 \
     --end-ip-address 0.0.0.0
@@ -63,13 +73,13 @@ echo "✅ Accès autorisé pour l'IP Azure Shell."
 # 🔹 Vérification du statut du serveur
 echo "🔹 Vérification du statut du serveur..."
 az postgres flexible-server show \
-    --name $SERVER_NAME \
+    --name $POSTGRES_SERVER \
     --resource-group $RESOURCE_GROUP \
     --query "{status: state, haMode: highAvailability}"
 
 # 🔹 Création de la table messages
 echo "🔹 Création de la table messages..."
-psql "postgresql://$ADMIN_USER:$ADMIN_PASSWORD@$SERVER_NAME.postgres.database.azure.com:5432/postgres?sslmode=require" \
+psql "postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@$POSTGRES_SERVER.postgres.database.azure.com:5432/postgres?sslmode=require" \
     -c "CREATE TABLE IF NOT EXISTS messages ( \
            id VARCHAR(255) PRIMARY KEY, \
            content TEXT NOT NULL, \

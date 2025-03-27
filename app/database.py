@@ -19,12 +19,10 @@ else:
         POSTGRES_USER = os.getenv("POSTGRES_USER")
         POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
         POSTGRES_SERVER = os.getenv("POSTGRES_SERVER")
-        POSTGRES_SERVER_SUFFIX = os.getenv("POSTGRES_SERVER_SUFFIX")
-        POSTGRES_DB = os.getenv("POSTGRES_DB")
 
         DATABASE_URL = (
             f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}"
-            f"@{POSTGRES_SERVER}{POSTGRES_SERVER_SUFFIX}:5432/{POSTGRES_DB}?sslmode=require"
+            f"@{POSTGRES_SERVER}.postgres.database.azure.com:5432/postgres?sslmode=require"
         )
         print(f"✅ Mode PRODUCTION : connexion via DATABASE_URL")
     except KeyError:

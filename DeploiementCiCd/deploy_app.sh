@@ -1,15 +1,20 @@
 #!/bin/bash
 
+# Load .env existant
+set -a
+. ../.env
+set +a
+
+
 # ========== CONFIGURATION ==========
-RESOURCE_GROUP="DevopsDeploymentManuelRG"
 LOCATION="westus2"
-ACR_NAME="monregistrydevops"
-IMAGE_NAME="hellodevops"
 
 # Génère un suffixe aléatoire de 6 caractères (compatible Bash)
 SUFFIX=$(tr -dc 'a-z0-9' </dev/urandom | head -c 6)
 APP_SERVICE_PLAN="hellodevops-plan-$SUFFIX"
 APP_NAME="hellodevops-$SUFFIX"
+ACR_NAME="monregistrydevops$SUFFIX"
+IMAGE_NAME="hellodevops$SUFFIX"
 
 echo "🚀 Nom unique généré : $APP_NAME"
 
@@ -92,6 +97,13 @@ INSTRUMENTATION_KEY=$(az monitor app-insights component show \
   --resource-group $RESOURCE_GROUP \
   --query instrumentationKey -o tsv)
 
+if [ -z "$INSTRUMENTATION_KEY" ]; then
+  echo "❌ ERREUR : Clé d'instrumentation Application Insights non récupérée."
+  exit 1
+else
+  echo "✅ Clé récupérée : $INSTRUMENTATION_KEY"
+fi
+
 echo "📎 Liaison App Service ↔ Application Insights..."
 az webapp config appsettings set \
   --name $APP_NAME \
@@ -116,7 +128,12 @@ echo "🌍 Configuration des variables d'environnement..."
 az webapp config appsettings set \
   --name $APP_NAME \
   --resource-group $RESOURCE_GROUP \
-  --settings ENV=production
+  --settings \
+    ENV=production \
+    APPINSIGHTS_INSTRUMENTATIONKEY=$INSTRUMENTATION_KEY \
+    POSTGRES_USER=$POSTGRES_USER \
+    POSTGRES_PASSWORD=$POSTGRES_PASSWORD \
+    POSTGRES_SERVER=$POSTGRES_SERVER 
 
 # ========== LOGS ==========
 echo "📡 Activation des logs de conteneur (stdout/stderr)..."
