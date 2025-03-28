@@ -124,7 +124,60 @@ az webapp config container set \
   --container-registry-user $ACR_USER \
   --container-registry-password $ACR_PASS
 
-echo "🌍 Configuration des variables d'environnement..."
+echo "🔐 Activation de l'identité managée pour l'App Service..."
+az webapp identity assign \
+  --name $APP_NAME \
+  --resource-group $RESOURCE_GROUP
+
+echo "🔎 Récupération de l'identité managée (principalId)..."
+IDENTITY_PRINCIPAL_ID=$(az webapp show \
+  --name $APP_NAME \
+  --resource-group $RESOURCE_GROUP \
+  --query identity.principalId -o tsv)
+
+echo "⏳ Attente que l'identité managée soit disponible dans Azure AD..."
+
+for ((i=1; i<=10; i++)); do
+  if az ad sp show --id "$IDENTITY_PRINCIPAL_ID" &>/dev/null; then
+    echo "✅ Identité managée disponible dans Azure AD"
+    break
+  else
+    echo "🔄 Tentative $i/10 : identité pas encore disponible, nouvelle tentative dans 5s..."
+    sleep 5
+  fi
+done
+
+if ! az ad sp show --id "$IDENTITY_PRINCIPAL_ID" &>/dev/null; then
+  echo "❌ Identité managée toujours indisponible après 10 tentatives"
+  exit 1
+fi
+
+#echo "🔐 Attribution des droits de lecture sur le secret à l'identité managée..."
+#az keyvault set-policy \
+#  --name $POSTGRES_KEYVAULT \
+#  --object-id $IDENTITY_PRINCIPAL_ID \
+#  --secret-permissions get list
+
+# 📋 Récupération du contexte Azure
+SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+
+echo "🔐 Attribution des droits RBAC 'Key Vault Secrets User' à l'identité managée..."
+
+powershell.exe -Command "
+  \$assignee = '$IDENTITY_PRINCIPAL_ID'
+  \$scope = '/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.KeyVault/vaults/$POSTGRES_KEYVAULT'
+  az role assignment create --assignee \$assignee --role 'Key Vault Secrets User' --scope \$scope
+"
+
+if [ $? -ne 0 ]; then
+  echo "❌ Échec de l'attribution du rôle RBAC à l'identité managée"
+  exit 1
+fi
+
+echo "✅ L'identité managée peut accéder au secret POSTGRES-PASSWORD dans $POSTGRES_KEYVAULT"
+
+
+echo "🌍 Configuration des variables d'environnement (avec référence au secret Key Vault)..."
 az webapp config appsettings set \
   --name $APP_NAME \
   --resource-group $RESOURCE_GROUP \
@@ -132,8 +185,8 @@ az webapp config appsettings set \
     ENV=production \
     APPINSIGHTS_INSTRUMENTATIONKEY=$INSTRUMENTATION_KEY \
     POSTGRES_USER=$POSTGRES_USER \
-    POSTGRES_PASSWORD=$POSTGRES_PASSWORD \
-    POSTGRES_SERVER=$POSTGRES_SERVER 
+    POSTGRES_SERVER=$POSTGRES_SERVER \
+    POSTGRES_PASSWORD="@Microsoft.KeyVault(SecretUri=https://$POSTGRES_KEYVAULT.vault.azure.net/secrets/POSTGRES-PASSWORD/)"
 
 # ========== LOGS ==========
 echo "📡 Activation des logs de conteneur (stdout/stderr)..."
