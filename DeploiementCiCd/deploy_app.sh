@@ -152,12 +152,6 @@ if ! az ad sp show --id "$IDENTITY_PRINCIPAL_ID" &>/dev/null; then
   exit 1
 fi
 
-#echo "🔐 Attribution des droits de lecture sur le secret à l'identité managée..."
-#az keyvault set-policy \
-#  --name $POSTGRES_KEYVAULT \
-#  --object-id $IDENTITY_PRINCIPAL_ID \
-#  --secret-permissions get list
-
 # 📋 Récupération du contexte Azure
 SUBSCRIPTION_ID=$(az account show --query id -o tsv)
 

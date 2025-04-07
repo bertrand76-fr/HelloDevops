@@ -26,10 +26,10 @@ echo "POSTGRES_KEYVAULT=$POSTGRES_KEYVAULT" >> ../.env
 echo "🚀 Ajout de  POSTGRES_KEYVAULT=$POSTGRES_KEYVAULT dans .env"
 
 # 🔹 Configuration des variables specifiques a la creation de la base
-LOCATION="westus2"  # ✅ Région Hawaï
+LOCATION="westus2"  
 MY_IP_ADDRESS=$(curl -s https://api.ipify.org)
 
-echo "🚀 Déploiement de PostgreSQL Flexible Server en mode Spot sur Azure (Hawaï)..."
+echo "🚀 Déploiement de PostgreSQL Flexible Server en mode Spot sur Azure ..."
 
 # 🔹 Vérifier si le Resource Group existe, sinon le créer
 az group show --name $RESOURCE_GROUP &>/dev/null
@@ -123,8 +123,8 @@ if [ $i -gt 30 ]; then
   exit 1
 fi
 
-# 🔑 Génération du mot de passe
-POSTGRES_PASSWORD=$(openssl rand -base64 16)
+# 🔑 Génération du mot de passe de 16 caractères avec des lettres (minuscules, majuscules) et des chiffres uniquement
+POSTGRES_PASSWORD=$(openssl rand -base64 12 | tr -dc 'A-Za-z0-9' | head -c 16)
 echo "🔑 Mot de passe sécurisé généré"
 
 # 🔐 Stockage dans Key Vault
@@ -135,7 +135,7 @@ az keyvault secret set \
 
 echo "🔐 Secret POSTGRES-PASSWORD enregistré dans $POSTGRES_KEYVAULT"
 
-# 🔹 Création du serveur PostgreSQL Flexible en mode Spot (Hawaï)
+# 🔹 Création du serveur PostgreSQL Flexible en mode Spot 
 az postgres flexible-server create \
     --resource-group $RESOURCE_GROUP \
     --name $POSTGRES_SERVER \
@@ -147,7 +147,7 @@ az postgres flexible-server create \
     --admin-user $POSTGRES_USER \
     --admin-password "$POSTGRES_PASSWORD"
 
-echo "✅ Base de données PostgreSQL créée avec succès dans la région Hawaï ($LOCATION)."
+echo "✅ Base de données PostgreSQL créée avec succès dans la région ($LOCATION)."
 
 # 🔹 Configuration des règles de pare-feu pour autoriser ton PC à accéder à la base
 # 🔹 Vérifier si l'IP est bien au format "nb.nb.nb.nb" (IPv4)
